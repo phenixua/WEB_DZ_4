@@ -7,7 +7,7 @@ from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from datetime import datetime
-import os  # Імпортуємо модуль os для перевірки наявності файлу
+import os
 
 BASE_DIR = Path()
 BUFFER_SIZE = 1024
@@ -16,8 +16,10 @@ HTTP_HOST = '0.0.0.0'
 SOCKET_HOST = '127.0.0.1'
 SOCKET_PORT = 5000
 
+
 class GoitFramework(BaseHTTPRequestHandler):
     def do_GET(self):
+        # Обробка GET-запитів
         route = urllib.parse.urlparse(self.path)
         print(route.query)
         match route.path:
@@ -33,18 +35,22 @@ class GoitFramework(BaseHTTPRequestHandler):
                     self.send_html('error.html', 404)
 
     def do_POST(self):
+        # Обробка POST-запитів
         size = self.headers.get('Content-Length')
         data = self.rfile.read(int(size))
 
+        # Відправка даних на UDP-сервер
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         client_socket.sendto(data, (SOCKET_HOST, SOCKET_PORT))
         client_socket.close()
 
+        # Перенаправлення користувача на сторінку /message
         self.send_response(302)
         self.send_header('Location', '/message')
         self.end_headers()
 
     def send_html(self, filename, status_code=200):
+        # Відправлення HTML-сторінки
         self.send_response(status_code)
         self.send_header('Content-Type', 'text/html')
         self.end_headers()
@@ -52,17 +58,20 @@ class GoitFramework(BaseHTTPRequestHandler):
             self.wfile.write(file.read())
 
     def send_static(self, filename, status_code=200):
+        # Відправлення статичних ресурсів, таких як CSS або зображення
         self.send_response(status_code)
         mime_type, *_ = mimetypes.guess_type(filename)
         if mime_type:
             self.send_header('Content-Type', mime_type)
         else:
-            self.send_header('Content-Type', 'text/plain')
+            self.send_header('Content-Type', 'text/plain')  # Якщо тип не визначено, встановлюємо "text/plain"
         self.end_headers()
         with open(f'static/{filename}', 'rb') as file:
             self.wfile.write(file.read())
 
+
 def save_data_from_form(data):
+    # Отримання, обробка та збереження даних з форми у файлі data.json
     parse_data = urllib.parse.unquote_plus(data.decode())
     try:
         parse_dict = {key: value for key, value in [el.split('=') for el in parse_data.split('&')]}
@@ -73,7 +82,7 @@ def save_data_from_form(data):
             with open('storage/data.json', 'r', encoding='utf-8') as file:
                 data = json.load(file)
         else:
-            data = {}
+            data = {}  # Якщо файл відсутній, створюємо пустий словник
 
         data[timestamp] = parse_dict
 
@@ -82,7 +91,9 @@ def save_data_from_form(data):
     except Exception as err:
         logging.error(err)
 
+
 def run_socket_server(host, port):
+    # Запуск UDP-сервера для обробки даних з форми
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_socket.bind((host, port))
     logging.info("Starting socket server")
@@ -96,7 +107,9 @@ def run_socket_server(host, port):
     finally:
         server_socket.close()
 
+
 def run_http_server(host, port):
+    # Запуск HTTP-сервера для обробки запитів користувачів
     address = (host, port)
     http_server = HTTPServer(address, GoitFramework)
     logging.info("Starting http server")
@@ -107,7 +120,9 @@ def run_http_server(host, port):
     finally:
         http_server.server_close()
 
+
 if __name__ == '__main__':
+    # Запуск HTTP- та UDP-серверів у різних потоках
     logging.basicConfig(level=logging.DEBUG, format='%(threadName)s %(message)s')
 
     server = Thread(target=run_http_server, args=(HTTP_HOST, HTTP_PORT))
