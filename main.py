@@ -7,6 +7,7 @@ from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from datetime import datetime
+import os  # Імпортуємо модуль os для перевірки наявності файлу
 
 BASE_DIR = Path()
 BUFFER_SIZE = 1024
@@ -15,9 +16,7 @@ HTTP_HOST = '0.0.0.0'
 SOCKET_HOST = '127.0.0.1'
 SOCKET_PORT = 5000
 
-
 class GoitFramework(BaseHTTPRequestHandler):
-
     def do_GET(self):
         route = urllib.parse.urlparse(self.path)
         print(route.query)
@@ -63,20 +62,25 @@ class GoitFramework(BaseHTTPRequestHandler):
         with open(f'static/{filename}', 'rb') as file:
             self.wfile.write(file.read())
 
-
 def save_data_from_form(data):
     parse_data = urllib.parse.unquote_plus(data.decode())
     try:
         parse_dict = {key: value for key, value in [el.split('=') for el in parse_data.split('&')]}
         timestamp = str(datetime.now())
-        with open('storage/data.json', 'r', encoding='utf-8') as file:
-            data = json.load(file)
+
+        # Перевірка наявності файлу data.json перед читанням
+        if os.path.isfile('storage/data.json'):
+            with open('storage/data.json', 'r', encoding='utf-8') as file:
+                data = json.load(file)
+        else:
+            data = {}
+
         data[timestamp] = parse_dict
+
         with open('storage/data.json', 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
     except Exception as err:
         logging.error(err)
-
 
 def run_socket_server(host, port):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -92,7 +96,6 @@ def run_socket_server(host, port):
     finally:
         server_socket.close()
 
-
 def run_http_server(host, port):
     address = (host, port)
     http_server = HTTPServer(address, GoitFramework)
@@ -103,7 +106,6 @@ def run_http_server(host, port):
         pass
     finally:
         http_server.server_close()
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='%(threadName)s %(message)s')
